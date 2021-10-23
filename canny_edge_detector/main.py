@@ -1,5 +1,6 @@
 import os
 import cv2
+import argparse
 import numpy as np
 from math import atan, degrees
 
@@ -25,14 +26,14 @@ To save:
 """
 
 class CannyEdgeDetector():
-    def __init__(self, img_file):
+    def __init__(self, img_filename):
         """Initialise variables, constants
 
         Args:
-            img_file (str): Image file name (.bmp)
+            img_filename (str): Image filename (.bmp)
         """
-        self.img_file = img_file
-        self.img_path = os.path.join('input_images',img_file)
+        self.img_filename = img_filename
+        self.img_path = os.path.join('input_images',img_filename)
         self.output_folder = 'out_folder'
         self.img = None
         self.smooth_img = None
@@ -151,7 +152,7 @@ class CannyEdgeDetector():
         """Gaussian smoothing operation: IMAGE * GAUSSIAN_FILTER; * -> convolution
         """
         self.smooth_img = self.convolution(self.img, self.GAUSSIAN_FILTER)/self.NORMALIZATION_FACTOR
-        self.write_img('smooth_'+self.img_file, self.smooth_img)
+        self.write_img('smooth_'+self.img_filename, self.smooth_img)
         
     def gradient_calc(self):
         """Calculate horizontal and vertical gradients using prewitt operator: IMAGE * PREWITT_X and IMAGE * PREWITT_y; * -> convolution
@@ -159,9 +160,9 @@ class CannyEdgeDetector():
         self.gradient_x = self.convolution(self.smooth_img, self.PREWITT_X)
         self.gradient_y = self.convolution(self.smooth_img, self.PREWITT_Y)
         self.gradient_magnitude = np.sqrt(np.square(self.gradient_x)+np.square(self.gradient_y))
-        self.write_img('horizontal_'+self.img_file, self.gradient_x)
-        self.write_img('vertical_'+self.img_file, self.gradient_y)
-        self.write_img('magnitude_'+self.img_file, self.gradient_magnitude)
+        self.write_img('horizontal_'+self.img_filename, self.gradient_x)
+        self.write_img('vertical_'+self.img_filename, self.gradient_y)
+        self.write_img('magnitude_'+self.img_filename, self.gradient_magnitude)
         self.angle_calc()
         
     def nms(self):
@@ -186,4 +187,7 @@ class CannyEdgeDetector():
         
         
 if __name__ == '__main__':
-    obj = CannyEdgeDetector('coins.bmp')
+    parser = argparse.ArgumentParser(description='Canny Edge Detector.')
+    parser.add_argument('img_filename', type=str, help='image filename')
+    args = parser.parse_args()
+    obj = CannyEdgeDetector(args.img_filename)
