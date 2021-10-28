@@ -1,6 +1,6 @@
 import os
-import cv2
 import argparse
+import cv2
 import numpy as np
 from math import atan, degrees
 
@@ -21,7 +21,7 @@ To save:
 2) Normalized horizontal and vertical gradient responses (two separate images) 
     **To generate normalized gradient  responses, take the absolute value of the results first and then normalize**
 3) Normalized gradient magnitude image.
-4) Normalized gradient magnitude image after non-maximasuppression.
+4) Normalized gradient magnitude image after non-maxima suppression.
 5) Binary edge maps using simple thresholding for thresholds chosen at the 25th, 50th and 75th percentiles.
 """
 
@@ -34,14 +34,18 @@ class CannyEdgeDetector():
         """
         self.img_filename = img_filename
         self.img_path = os.path.join('input_images',img_filename)
-        self.output_folder = 'out_folder'
+        self.output_folder = os.path.join('out_folder', self.img_filename.split('.')[0])
         self.img = None
         self.smooth_img = None
         self.gradient_x = None
         self.gradient_y = None
         self.gradient_angle = None
         self.gradient_magnitude = None
+        self.quantized_angle = None
         self.magnitude_nms = None
+        self.edgemap_t25 = None
+        self.edgemap_t50 = None
+        self.edgemap_t75 = None
         
         # Gaussian filter as per the question
         self.GAUSSIAN_FILTER = np.array(
@@ -69,6 +73,28 @@ class CannyEdgeDetector():
                             [0,0,0],
                             [-1,-1,-1]]
                         )
+
+        # Sector map to quantize gradient angles depending on multiple
+        self.SECTORS = {
+            0:0,
+            1:1,
+            2:1,
+            3:2,
+            4:2,
+            5:3,
+            6:3,
+            7:0,
+            8:0
+        }
+
+        # Map to calculate neighbors depending on the sector
+        self.NEIGHBORS = {
+            0:{'l':(-1,0),'r':(1,0)},
+            1:{'l':(-1,1),'r':(1,-1)},
+            2:{'l':(0,-1),'r':(0,1)},
+            3:{'l':(-1,-1),'r':(1,1)}
+        }
+
         # Call to driver function. Performs canny edge detection on input image.
         self.driver()
         
@@ -79,7 +105,7 @@ class CannyEdgeDetector():
             directory (str): Directory path
         """
         if not os.path.isdir(directory):
-            os.mkdir(directory)
+            os.makedirs(directory)
             print(f'Creating {directory}...')
             
     def read_img(self):
@@ -94,8 +120,9 @@ class CannyEdgeDetector():
             filename (str): Filename to store images
             file (ndarray): Image numpy array
         """
-        cv2.imwrite(os.path.join(self.output_folder,filename), file)
-        print(f'{filename} saved...')
+        out_path = os.path.join(self.output_folder,filename)
+        cv2.imwrite(out_path, file)
+        print(f'{out_path} saved...')
         
     def slice_array(self, array, start_x, start_y, filter_length):
         """Returns array slices to convolute
@@ -129,8 +156,8 @@ class CannyEdgeDetector():
         """
         output = np.zeros(x.shape)
         start_x = start_y = 1
-        for i in range(x.shape[0]-len(y)+1):
-            for j in range(x.shape[1]-len(y)+1):
+        for _ in range(x.shape[0]-len(y)+1):
+            for _ in range(x.shape[1]-len(y)+1):
                 output[start_x,start_y] = (self.slice_array(x, start_x-1,start_y-1, y.shape[0])*y).sum()
                 start_y += 1
             start_x += 1
@@ -146,8 +173,86 @@ class CannyEdgeDetector():
                 if self.gradient_x[itr_x][itr_y] != 0:
                     self.gradient_angle[itr_x][itr_y] = degrees(atan(self.gradient_y[itr_x][itr_y]/self.gradient_x[itr_x][itr_y]))
                 else:
-                    self.gradient_angle[itr_x][itr_y] = 0
-        
+                    self.gradient_angle[itr_x][itr_y] = np.NAN
+    
+    def get_sector(self, angle):
+        """Returns sector value (0-3)
+            Logic: As the sector wheel is same along the 0-180 degree line, 
+            we reduce the range from 0-360 to 0-180 for the gradient angle
+            We achieve this by subtracting it by 180 if it is greater than 180
+            In case where the gradient angle is -ve
+            we first add 360 to it and then subtract it by 180 if it is greater than 180
+            We then divide this value by 22.5(as the sector is divided into smaller sectors of 22.5 degrees)
+            This value gives us the multiple which will futher give us the sector using map
+            Usage of map reduces the complexity of the problem
+
+        Args:
+            angle (float): Gradient angle for a pixel location
+
+        Returns:
+            int: Sector value (0-3)
+        """
+        if angle < 0:
+            angle += 360
+        if angle > 180:
+            angle -= 180
+        angle = int(angle//22.5)
+        return self.SECTORS[angle]
+
+    def quantize_angle(self):
+        """Function iterates over the gradient angle array and calculates sector
+            for every pixel location. If the 3*3 mask goes outside the edges of the image,
+            the quantized value is set to nan
+        """
+        self.quantized_angle = np.zeros(self.gradient_magnitude.shape)
+        for itr_x in range(self.quantized_angle.shape[0]):
+            for itr_y in range(self.quantized_angle.shape[1]):
+                if not np.isnan(self.gradient_angle[itr_x][itr_y]):
+                    self.quantized_angle[itr_x][itr_y] = self.get_sector(self.gradient_angle[itr_x][itr_y])
+                else:
+                    self.quantized_angle[itr_x][itr_y] = np.NAN
+
+    def nms_compare(self, ind_x, ind_y, sector):
+        """Fuction calculates neighbor coordinates and checks if the center pixel is maximum out of the neighbors
+            If the center pixel is the maximum, then function returns the magnitude of the pixel
+            Else returns 0
+
+        Args:
+            ind_x (int): X coordinate of the center pixel
+            ind_y (int): Y coordinate of the center pixel
+            sector (int): Quantized gradient angle
+
+        Returns:
+            int: Gradient magnitude or 0
+        """
+        neighbor_l = {'x':ind_x+self.NEIGHBORS[sector]['l'][0],'y':ind_y+self.NEIGHBORS[sector]['l'][1]}
+        neighbor_r = {'x':ind_x+self.NEIGHBORS[sector]['r'][0],'y':ind_y+self.NEIGHBORS[sector]['r'][1]}
+        if self.gradient_magnitude[ind_x][ind_y] == max(self.gradient_magnitude[ind_x][ind_y], self.gradient_magnitude[neighbor_l['x']][neighbor_l['y']], self.gradient_magnitude[neighbor_r['x']][neighbor_r['y']]):
+            return self.gradient_magnitude[ind_x][ind_y]
+        else:
+            return 0
+
+    def apply_threshold(self, x, threshold):
+        """Applies simple thresholding operation
+            If magnitude < threshold, set the edgemap pixel value to 0
+            Else set the edgemap pixel value to 255 (white pixel)
+
+        Args:
+            x (ndarray): Gradient magnitude after non-maxima suppression
+            threshold (float): Threshold value
+
+        Returns:
+            ndarray: Edgemap created after applying simple threshold operation
+        """
+        edge_map = np.zeros(x.shape)
+        for itr_x in range(x.shape[0]):
+            for itr_y in range(x.shape[1]):
+                if x[itr_x][itr_y] < threshold:
+                    edge_map[itr_x][itr_y] = 0
+                else:
+                    edge_map[itr_x][itr_y] = 255
+        return edge_map
+
     def gaussian_smoothing(self):
         """Gaussian smoothing operation: IMAGE * GAUSSIAN_FILTER; * -> convolution
         """
@@ -166,7 +271,39 @@ class CannyEdgeDetector():
         self.angle_calc()
         
     def nms(self):
-        pass
+        """Non-maxima suppression function
+            Steps:
+                1) Quantize gradient angles
+                2) Iterate over gradient magnitude and compare center pixel with neighbors
+        """
+        self.quantize_angle()
+        self.magnitude_nms = np.zeros(self.gradient_magnitude.shape)
+        for itr_x in range(self.magnitude_nms.shape[0]):
+            for itr_y in range(self.magnitude_nms.shape[1]):
+                if not np.isnan(self.quantized_angle[itr_x][itr_y]):
+                    self.magnitude_nms[itr_x][itr_y] = self.nms_compare(itr_x, itr_y, self.quantized_angle[itr_x][itr_y])
+                else:
+                    self.magnitude_nms[itr_x][itr_y] = 0
+        self.write_img('nms_magnitude_'+self.img_filename, self.magnitude_nms)
+
+    def thresholding(self):
+        """Simple thresholding operation
+            We calculate 3 thresholds:
+                1) T_25 = 25th percentile of magnitude after nms
+                2) T_50 = 50th percentile of magnitude after nms
+                3) T_75 = 75th percentile of magnitude after nms
+        """
+        threshold_25 = np.quantile(list(set(self.magnitude_nms.flatten())),0.25)
+        threshold_50 = np.quantile(list(set(self.magnitude_nms.flatten())),0.50)
+        threshold_75 = np.quantile(list(set(self.magnitude_nms.flatten())),0.75)
+
+        self.edgemap_t25 = self.apply_threshold(self.magnitude_nms, threshold_25)
+        self.edgemap_t50 = self.apply_threshold(self.magnitude_nms, threshold_50)
+        self.edgemap_t75 = self.apply_threshold(self.magnitude_nms, threshold_75)
+
+        self.write_img('edgemap_t25_'+self.img_filename, self.edgemap_t25)
+        self.write_img('edgemap_t50_'+self.img_filename, self.edgemap_t50)
+        self.write_img('edgemap_t75_'+self.img_filename, self.edgemap_t75)
     
     def driver(self):
         """Calls canny edge detection functions in order:
@@ -180,10 +317,8 @@ class CannyEdgeDetector():
         self.read_img()
         self.gaussian_smoothing()
         self.gradient_calc()
-        # TODO:
-        # - Non-maxima supperession
-        # - Thresholding
         self.nms()
+        self.thresholding()
         
         
 if __name__ == '__main__':
