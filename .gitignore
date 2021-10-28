@@ -1,6 +1,5 @@
 # Other files
 .DS_Store
-.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -79,6 +78,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
+*.ipynb
 .ipynb_checkpoints
 
 # IPython
