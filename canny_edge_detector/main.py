@@ -1,15 +1,9 @@
-import os
-import argparse
-import cv2
-import numpy as np
-from math import atan, degrees
-
 """
-STEPS:
+Steps:
 1) Read image in grayscale
 2) Gaussian smoothing
 3) Gradient calculation, magnitude calculation, gradient angle calculation
-4) Non-maxima supperession
+4) Non-maxima suppression
 5) Thresholding: use simple thresholding and produce three binary edge maps by 
 using three thresholds chosen at the 25th, 50th and 75th percentiles of the 
 gradient magnitudes after non-maxima suppression
@@ -23,18 +17,32 @@ To save:
 3) Normalized gradient magnitude image.
 4) Normalized gradient magnitude image after non-maxima suppression.
 5) Binary edge maps using simple thresholding for thresholds chosen at the 25th, 50th and 75th percentiles.
+
+*************************************************************************************************************************
+
+Usage: python3 main.py <path__to_img_file>
+
+Example: python3 main.py input_images/House.bmp
+
+After execution, 'results' folder will be created containing sub-folders with results of input images.
 """
 
+import os
+import argparse
+import cv2
+import numpy as np
+from math import atan, degrees
+
 class CannyEdgeDetector():
-    def __init__(self, img_filename):
+    def __init__(self, img_path):
         """Initialise variables, constants
 
         Args:
             img_filename (str): Image filename (.bmp)
         """
-        self.img_filename = img_filename
-        self.img_path = os.path.join('input_images',img_filename)
-        self.output_folder = os.path.join('out_folder', self.img_filename.split('.')[0])
+        self.img_path = img_path
+        self.img_filename = self.get_img_filename()
+        self.output_folder = os.path.join('results', self.img_filename.split('.')[0])
         self.img = None
         self.smooth_img = None
         self.gradient_x = None
@@ -58,7 +66,7 @@ class CannyEdgeDetector():
                                     [1,1,2,2,2,1,1]]
                                 )
 
-        # Sum of entires in the gaussian filter
+        # Sum of entries in the gaussian filter
         self.NORMALIZATION_FACTOR = 140
 
         # Prewitt's horizontal gradient operator
@@ -67,7 +75,7 @@ class CannyEdgeDetector():
                             [-1,0,1],
                             [-1,0,1]]
                         )
-        # Prewitt's vertical gradient ooperator
+        # Prewitt's vertical gradient operator
         self.PREWITT_Y = np.array(
                             [[1,1,1],
                             [0,0,0],
@@ -99,7 +107,7 @@ class CannyEdgeDetector():
         self.driver()
         
     def is_dir(self, directory):
-        """Helper function to create directories if they dont exist
+        """Helper function to create directories if they don't exist
 
         Args:
             directory (str): Directory path
@@ -107,6 +115,16 @@ class CannyEdgeDetector():
         if not os.path.isdir(directory):
             os.makedirs(directory)
             print(f'Creating {directory}...')
+
+    def get_img_filename(self):
+        """Helper function to extract filename from image path, filename will be used to save result images
+
+        Returns:
+            str: Image filename
+        """
+        img_path_split = self.img_path.split('/')
+        img_path_split.reverse()
+        return img_path_split[0]
             
     def read_img(self):
         """Read image stored at img_path in grayscale
@@ -183,7 +201,7 @@ class CannyEdgeDetector():
             In case where the gradient angle is -ve
             we first add 360 to it and then subtract it by 180 if it is greater than 180
             We then divide this value by 22.5(as the sector is divided into smaller sectors of 22.5 degrees)
-            This value gives us the multiple which will futher give us the sector using map
+            This value gives us the multiple which will further give us the sector using map
             Usage of map reduces the complexity of the problem
 
         Args:
@@ -209,11 +227,12 @@ class CannyEdgeDetector():
             for itr_y in range(self.quantized_angle.shape[1]):
                 if not np.isnan(self.gradient_angle[itr_x][itr_y]):
                     self.quantized_angle[itr_x][itr_y] = self.get_sector(self.gradient_angle[itr_x][itr_y])
+                    print(f'Angle: {self.gradient_angle[itr_x][itr_y]} Sector: {type(self.quantized_angle[itr_x][itr_y])}')
                 else:
                     self.quantized_angle[itr_x][itr_y] = np.NAN
 
     def nms_compare(self, ind_x, ind_y, sector):
-        """Fuction calculates neighbor coordinates and checks if the center pixel is maximum out of the neighbors
+        """Function calculates neighbor coordinates and checks if the center pixel is maximum out of the neighbors
             If the center pixel is the maximum, then function returns the magnitude of the pixel
             Else returns 0
 
@@ -310,7 +329,7 @@ class CannyEdgeDetector():
             - Read image
             - Gaussian smoothing
             - Gradient calculation using prewitt's operator
-            - Non-maxima supperession
+            - Non-maxima suppression
             - Thresholding
         """
         self.is_dir(self.output_folder)
