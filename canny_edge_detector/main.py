@@ -141,7 +141,7 @@ class CannyEdgeDetector():
         out_path = os.path.join(self.output_folder,filename)
         cv2.imwrite(out_path, file)
         print(f'{out_path} saved...')
-        
+
     def slice_array(self, array, start_x, start_y, filter_length):
         """Returns array slices to convolute
 
@@ -173,13 +173,13 @@ class CannyEdgeDetector():
             ndarray: Resultant of x*y; * -> convolution
         """
         output = np.zeros(x.shape)
-        start_x = start_y = 1
+        start_x = start_y = (len(y)//2)
         for _ in range(x.shape[0]-len(y)+1):
             for _ in range(x.shape[1]-len(y)+1):
-                output[start_x,start_y] = (self.slice_array(x, start_x-1,start_y-1, y.shape[0])*y).sum()
+                output[start_x][start_y] = (self.slice_array(x, start_x-(len(y)//2),start_y-(len(y)//2), y.shape[0])*y).sum()
                 start_y += 1
             start_x += 1
-            start_y = 1
+            start_y = len(y)//2
         return output
     
     def angle_calc(self):
@@ -227,7 +227,6 @@ class CannyEdgeDetector():
             for itr_y in range(self.quantized_angle.shape[1]):
                 if not np.isnan(self.gradient_angle[itr_x][itr_y]):
                     self.quantized_angle[itr_x][itr_y] = self.get_sector(self.gradient_angle[itr_x][itr_y])
-                    print(f'Angle: {self.gradient_angle[itr_x][itr_y]} Sector: {type(self.quantized_angle[itr_x][itr_y])}')
                 else:
                     self.quantized_angle[itr_x][itr_y] = np.NAN
 
@@ -246,7 +245,7 @@ class CannyEdgeDetector():
         """
         neighbor_l = {'x':ind_x+self.NEIGHBORS[sector]['l'][0],'y':ind_y+self.NEIGHBORS[sector]['l'][1]}
         neighbor_r = {'x':ind_x+self.NEIGHBORS[sector]['r'][0],'y':ind_y+self.NEIGHBORS[sector]['r'][1]}
-        if self.gradient_magnitude[ind_x][ind_y] == max(self.gradient_magnitude[ind_x][ind_y], self.gradient_magnitude[neighbor_l['x']][neighbor_l['y']], self.gradient_magnitude[neighbor_r['x']][neighbor_r['y']]):
+        if self.gradient_magnitude[ind_x][ind_y] > self.gradient_magnitude[neighbor_l['x']][neighbor_l['y']] and self.gradient_magnitude[ind_x][ind_y] > self.gradient_magnitude[neighbor_r['x']][neighbor_r['y']]:
             return self.gradient_magnitude[ind_x][ind_y]
         else:
             return 0
@@ -312,9 +311,13 @@ class CannyEdgeDetector():
                 2) T_50 = 50th percentile of magnitude after nms
                 3) T_75 = 75th percentile of magnitude after nms
         """
-        threshold_25 = np.quantile(list(set(self.magnitude_nms.flatten())),0.25)
-        threshold_50 = np.quantile(list(set(self.magnitude_nms.flatten())),0.50)
-        threshold_75 = np.quantile(list(set(self.magnitude_nms.flatten())),0.75)
+        threshold_25 = np.percentile(list(set(self.magnitude_nms.flatten())),25)
+        threshold_50 = np.percentile(list(set(self.magnitude_nms.flatten())),50)
+        threshold_75 = np.percentile(list(set(self.magnitude_nms.flatten())),75)
+
+        print(threshold_25)
+        print(threshold_50)
+        print(threshold_75)
 
         self.edgemap_t25 = self.apply_threshold(self.magnitude_nms, threshold_25)
         self.edgemap_t50 = self.apply_threshold(self.magnitude_nms, threshold_50)
