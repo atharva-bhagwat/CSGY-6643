@@ -373,3 +373,9 @@ if __name__ == '__main__':
     parser.add_argument('img_filename', type=str, help='image filename')
     args = parser.parse_args()
     obj = CannyEdgeDetector(args.img_filename)
+
+# TODO:
+# - CLEAN CODE
+# - SAVE PADDED IMAGES
+# - COMPARE NMS
+# - PDF
