@@ -233,7 +233,7 @@ class CannyEdgeDetector():
         # NEIGHBOR dictionary is used for calculating indexes of the ndarray
         neighbor_l = {'x':ind_x+self.NEIGHBORS.get(sector).get('l')[0],'y':ind_y+self.NEIGHBORS.get(sector).get('l')[1]}
         neighbor_r = {'x':ind_x+self.NEIGHBORS.get(sector).get('r')[0],'y':ind_y+self.NEIGHBORS.get(sector).get('r')[1]}
-        if (self.gradient_magnitude[ind_x][ind_y] >= self.gradient_magnitude[neighbor_l.get('x')][neighbor_l.get('y')]) and (self.gradient_magnitude[ind_x][ind_y] >= self.gradient_magnitude[neighbor_r.get('x')][neighbor_r.get('y')]):
+        if (self.gradient_magnitude[ind_x][ind_y] > self.gradient_magnitude[neighbor_l.get('x')][neighbor_l.get('y')]) and (self.gradient_magnitude[ind_x][ind_y] > self.gradient_magnitude[neighbor_r.get('x')][neighbor_r.get('y')]):
             return self.gradient_magnitude[ind_x][ind_y]
         else:
             return 0
