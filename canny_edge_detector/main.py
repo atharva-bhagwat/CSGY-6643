@@ -20,7 +20,7 @@ To save:
 
 *************************************************************************************************************************
 
-Dependacy Installation: pip3 install -r requirements.txt
+Dependency Installation: pip3 install -r requirements.txt
 
 Usage: python3 main.py <path__to_img_file>
 
@@ -157,7 +157,7 @@ class CannyEdgeDetector():
         print(f'{out_path} saved...')
 
     def update_padding(self, val):
-        """Helper function which keeps track of padding value
+        """Helper function which keeps track of padding values (undefined values)
             
         Args:
             val (int): Value is equal to len(filter)//2
