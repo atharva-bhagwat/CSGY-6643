@@ -77,7 +77,11 @@ class CannyEdgeDetector():
                                 )
 
         # Sum of entries in the gaussian filter
-        self.NORMALIZATION_FACTOR = 140
+        self.GAUSSIAN_NORMALIZATION_FACTOR = 140
+        # Maximum possible value for gradients
+        self.GRADIENT_NORMALIZATION_FACTOR = 3
+        # Maximum possible value for gradient magnitude
+        self.MAGNITUDE_NORMALIZATION_FACTOR = 3*(2**0.5)
 
         # Prewitt's horizontal gradient operator
         self.PREWITT_X = np.array(
@@ -278,7 +282,7 @@ class CannyEdgeDetector():
     def gaussian_smoothing(self):
         """Gaussian smoothing operation: IMAGE * GAUSSIAN_FILTER; * -> convolution
         """
-        self.smooth_img = self.convolution(self.img, self.GAUSSIAN_FILTER)/self.NORMALIZATION_FACTOR
+        self.smooth_img = self.convolution(self.img, self.GAUSSIAN_FILTER)/self.GAUSSIAN_NORMALIZATION_FACTOR
         self.update_padding(len(self.GAUSSIAN_FILTER)//2)
         self.write_img('smooth_'+self.img_filename, np.pad(self.smooth_img, self.pad))
         
@@ -294,11 +298,12 @@ class CannyEdgeDetector():
         self.angle_calc()
 
         # Normalizing gradients and gradient magnitude to set the range to [0, 255]
-        # Normalization formula: x/max(x) * 255
-        self.gradient_x = abs(self.gradient_x)/abs(self.gradient_x).max() * 255
-        self.gradient_y = abs(self.gradient_y)/abs(self.gradient_y).max() * 255
-        self.gradient_magnitude = self.gradient_magnitude/self.gradient_magnitude.max() * 255
-
+        # Normalization formula: abs(x)/maximum possible value
+        # Maximum possible value for gradients = 3
+        # Maxpossible value for gradient magnitude = 3*sqrt(2)
+        self.gradient_x = abs(self.gradient_x)/self.GRADIENT_NORMALIZATION_FACTOR
+        self.gradient_y = abs(self.gradient_y)/self.GRADIENT_NORMALIZATION_FACTOR
+        self.gradient_magnitude = self.gradient_magnitude/self.MAGNITUDE_NORMALIZATION_FACTOR
         self.write_img('horizontal_'+self.img_filename, np.pad(self.gradient_x, self.pad))
         self.write_img('vertical_'+self.img_filename, np.pad(self.gradient_y, self.pad))
         self.write_img('magnitude_'+self.img_filename, np.pad(self.gradient_magnitude, self.pad))
