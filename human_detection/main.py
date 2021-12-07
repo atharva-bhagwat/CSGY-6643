@@ -9,11 +9,17 @@ Steps:
 Notes:
 - Use 9 bins (unsigned). If gradient angle is greater than 180, subtract 180 from it. 
 - Use copy of hist bin and add copies to ndarray to form cell output (20*11 ndarray). use this ndarray when parsing for blocks.
+- blocks: 19*11
+- In project 2, the histogram intersection formula computes the similarity between the input image and the training image. 
+The larger the similarity, the smaller the distance between the input image and the training image. 
 """
 
 import os
 import cv2
 import numpy as np
+from itertools import islice
+
+from numpy.core import numeric
 
 class HumanDetectorHOG():
     def __init__(self, image_data_path):
@@ -24,18 +30,6 @@ class HumanDetectorHOG():
 
         self.cell_template_shape = (20,12)
         self.block_template_shape = (19,11)
-
-        self.hist_bin = {
-                            10:0,
-                            30:0,
-                            50:0,
-                            70:0,
-                            90:0,
-                            110:0,
-                            130:0,
-                            150:0,
-                            170:0,
-                        }
 
         # Prewitt's horizontal gradient operator
         self.PREWITT_X = np.array(
@@ -93,39 +87,138 @@ class HumanDetectorHOG():
         # If angle is greater than 180, subtract 180
         gradient_angle[gradient_angle > 180] -= 180
 
-        return gradient_magnitude, gradient_angle
+        return np.pad(gradient_magnitude, 1), np.pad(gradient_angle, 1)
 
-    def calc_hist_bin(self, hist_bin_cellwise, img, cell_size = 8):
-        hist_bin = self.hist_bin.copy()
+    def get_ratio(self, angle):
+        if angle <= 10:
+            lower_center = 10
+            itr_lower = 0
+            itr_upper = 8
+        elif angle >=170:
+            lower_center = 170
+            itr_lower = 8
+            itr_upper = 0
+        else:
+            for itr_i in range(9):
+                if itr_i*20 + 10 < angle:
+                    lower_center = itr_i*20 + 10
+                    itr_lower = itr_i
+                    itr_upper = itr_i + 1
+        ratio = {itr_lower: 1 - abs(angle-lower_center)/20, itr_upper: abs(angle-lower_center)/20}
+        return ratio
+
+    def split_magnitude(self, magnitude, angle):
+        ratio = self.get_ratio(angle)
+        return {key: value*magnitude for key, value in ratio.items()}
+
+    def get_hist(self, magnitude_slice, angle_slice):
+        hist_bin = [0,0,0,0,0,0,0,0,0]
+        for itr_i in range(magnitude_slice.shape[0]):
+            for itr_j in range(magnitude_slice.shape[1]):
+                magnitude_split = self.split_magnitude(magnitude_slice[itr_i][itr_j], angle_slice[itr_i][itr_j])
+                for key, value in magnitude_split.items():
+                    hist_bin[key] += value
+        return hist_bin
+
+    def calc_hist_bin(self, hist_bin_cellwise, gradient_magnitude, gradient_angle, cell_size = 8):
         for i in range(hist_bin_cellwise.shape[0]):
             for j in range(hist_bin_cellwise.shape[1]):
-                pass        # write array slicing math in terms of i,j (cell locations) and pixels in img
+                magnitude_slice = gradient_magnitude[i*cell_size:(i*cell_size)+cell_size, j*cell_size:(j*cell_size)+cell_size]
+                angle_slice = gradient_angle[i*cell_size:(i*cell_size)+cell_size, j*cell_size:(j*cell_size)+cell_size]
+                hist_bin_cellwise[i][j] = self.get_hist(magnitude_slice, angle_slice)
+        return hist_bin_cellwise
+
+    def get_l2_norm(self, block):
+        l2_norm = np.zeros(9)
+        for itr_i in range(block.shape[0]):
+            for itr_j in range(block.shape[1]):
+                l2_norm += np.array(block[itr_i][itr_j])**2
+        return np.sqrt(l2_norm)
+
+    def norm_flatten(self, block, l2_norm=None):
+        block_flat = np.array([])
+        if l2_norm is None:
+            for itr_i in range(block.shape[0]):
+                for itr_j in range(block.shape[1]):
+                    block_flat = np.append(block_flat, block[itr_i][itr_j])
+        else:
+            for itr_i in range(block.shape[0]):
+                for itr_j in range(block.shape[1]):
+                    block_flat = np.append(block_flat, np.divide(block[itr_i][itr_j],l2_norm, out = np.zeros_like(block[itr_i][itr_j]), where = l2_norm!=0))
+        return block_flat
 
     def normalize_hist_bin(self, norm_hist_bin_blockwise, hist_bin_cellwise, block_size = 2):
-        pass
+        for itr_i in range(norm_hist_bin_blockwise.shape[0]):
+            for itr_j in range(norm_hist_bin_blockwise.shape[1]):
+                block = hist_bin_cellwise[itr_i:itr_i+block_size, itr_j:itr_j+block_size]
+                l2_norm = self.get_l2_norm(block)
+                norm_hist_bin_blockwise[itr_i][itr_j] = self.norm_flatten(block, l2_norm=l2_norm)
+        return norm_hist_bin_blockwise
+
 
     def hog_driver(self, img):
         gradient_magnitude, gradient_angle = self.gradient_info_calc(img)
-        hist_bin_cellwise = self.calc_hist_bin(np.zeros(self.cell_template_shape), img)
-        norm_hist_bin_blockwise = self.normalize_hist_bin(np.zeros(self.block_template_shape), hist_bin_cellwise)
+        hist_bin_cellwise = self.calc_hist_bin(np.empty(self.cell_template_shape, object), gradient_magnitude, gradient_angle)
+        norm_hist_bin_blockwise = self.normalize_hist_bin(np.empty(self.block_template_shape, object), hist_bin_cellwise)
+        descriptor = self.norm_flatten(norm_hist_bin_blockwise)
+        return descriptor
+
+    def calc_similarity(self, test_descriptor, train_descriptor):
+        numerator = 0
+        for itr in range(len(test_descriptor)):
+            numerator += min(train_descriptor[itr], test_descriptor[itr])
+
+        return numerator/sum(train_descriptor)
+
+    def take(self, n, iterable):
+        """Return first n items of the iterable as a list"""
+        return dict(list(islice(iterable, n)))
+
+    def predict(self, info):
+        prediction = []
+        for _, data in info.items():
+            prediction.append(data['class'])
+        return max(prediction, key=prediction.count)
+
+    def knn(self, test_descriptor, k=3):
+        neighbor_info = {}
+        for image_filename, image_data in self.training_set.items():
+            similarity = self.calc_similarity(test_descriptor, image_data['descriptor'])
+            neighbor_info[image_filename] = {'similarity':similarity, 'class':image_data['class']}
+
+        neighbor_info = {key: value for key, value in sorted(neighbor_info.items(), key=lambda value: value[1]['similarity'], reverse=True)}
+        print(f'neighbors:\n{neighbor_info}')
+        knn_info = self.take(k, neighbor_info.items())
+
+        prediction = self.predict(knn_info)
+        
+        return prediction, knn_info
+
+    def classify(self):
+        for _, image_data in self.testing_set.items():
+            image_data['predicted'], image_data['knn_info'] = self.knn(image_data['descriptor'])
 
     def load_data(self):
         for sub_folder in os.listdir(self.image_data_path):
-            if 'training' in sub_folder.lower():
+            if os.path.isdir(os.path.join(self.image_data_path, sub_folder)):
                 for image_filename in os.listdir(os.path.join(self.image_data_path, sub_folder)):
-                    img = self.bgr_2_gray(self.read_img(os.path.join(self.image_data_path, sub_folder, image_filename)))
-                    label = True if 'pos' in sub_folder.lower() else False
-                    descriptor = self.hog_driver(img)
-                    self.training_set[image_filename] = {'img':img,'class':label,'descriptor':descriptor}
+                        if '.bmp' in image_filename:
+                            img = self.bgr_2_gray(self.read_img(os.path.join(self.image_data_path, sub_folder, image_filename)))
+                            label = "Human" if 'pos' in sub_folder.lower() else "No-Human"
+                            descriptor = self.hog_driver(img)
+                            if 'training' in sub_folder.lower():
+                                self.training_set[image_filename] = {'img':img,'class':label,'descriptor':descriptor}
+                            if 'test' in sub_folder.lower():
+                                self.testing_set[image_filename] = {'img':img,'actual':label,'descriptor':descriptor,'predicted':None,'knn_info':None}
+    def driver(self):
+        self.load_data()
+        self.classify()
 
-            if 'test' in sub_folder.lower():
-                for image_filename in os.listdir(os.path.join(self.image_data_path, sub_folder)):
-                    img = self.bgr_2_gray(self.read_img(os.path.join(self.image_data_path, sub_folder, image_filename)))
-                    label = True if 'pos' in sub_folder.lower() else False
-                    descriptor = self.hog_driver(img)
-                    self.training_set[image_filename] = {'img':img,'actual':label,'descriptor':descriptor}
-
+        for key, value in self.testing_set.items():
+            print(f'{key}\nActual: {value["actual"]}\tPredicted: {value["predicted"]}\nInfo:\n{value["knn_info"]}\n\n**********\n\n')
 
 
 if __name__ == '__main__':
-    obj = HumanDetectorHOG()
+    image_data_path = 'image_data'
+    obj = HumanDetectorHOG(image_data_path)
+    obj.driver()
