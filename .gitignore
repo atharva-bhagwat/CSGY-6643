@@ -1,6 +1,7 @@
 # Other files
 .DS_Store
 .vscode
+*logs.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

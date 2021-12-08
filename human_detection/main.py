@@ -17,9 +17,7 @@ The larger the similarity, the smaller the distance between the input image and 
 import os
 import cv2
 import numpy as np
-from itertools import islice
-
-from numpy.core import numeric
+from more_itertools import take
 
 class HumanDetectorHOG():
     def __init__(self, image_data_path):
@@ -45,6 +43,8 @@ class HumanDetectorHOG():
                         )
         # Maximum possible value for gradient magnitude
         self.MAGNITUDE_NORMALIZATION_FACTOR = 3*(2**0.5)
+
+        self.driver()
 
     def read_img(self, path):
         return cv2.imread(path)
@@ -170,10 +170,6 @@ class HumanDetectorHOG():
 
         return numerator/sum(train_descriptor)
 
-    def take(self, n, iterable):
-        """Return first n items of the iterable as a list"""
-        return dict(list(islice(iterable, n)))
-
     def predict(self, info):
         prediction = []
         for _, data in info.items():
@@ -187,8 +183,7 @@ class HumanDetectorHOG():
             neighbor_info[image_filename] = {'similarity':similarity, 'class':image_data['class']}
 
         neighbor_info = {key: value for key, value in sorted(neighbor_info.items(), key=lambda value: value[1]['similarity'], reverse=True)}
-        print(f'neighbors:\n{neighbor_info}')
-        knn_info = self.take(k, neighbor_info.items())
+        knn_info = dict(take(k, neighbor_info.items()))
 
         prediction = self.predict(knn_info)
         
@@ -221,4 +216,3 @@ class HumanDetectorHOG():
 if __name__ == '__main__':
     image_data_path = 'image_data'
     obj = HumanDetectorHOG(image_data_path)
-    obj.driver()
