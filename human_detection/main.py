@@ -44,6 +44,8 @@ class HumanDetectorHOG():
         # Maximum possible value for gradient magnitude
         self.MAGNITUDE_NORMALIZATION_FACTOR = 3*(2**0.5)
 
+        self.get_l2_norm = lambda x: np.sqrt(sum(x**2))
+
         self.driver()
 
     def read_img(self, path):
@@ -128,31 +130,23 @@ class HumanDetectorHOG():
                 hist_bin_cellwise[i][j] = self.get_hist(magnitude_slice, angle_slice)
         return hist_bin_cellwise
 
-    def get_l2_norm(self, block):
-        l2_norm = np.zeros(9)
+    def flatten(self, block):
+        block_flat = np.array([])
         for itr_i in range(block.shape[0]):
             for itr_j in range(block.shape[1]):
-                l2_norm += np.array(block[itr_i][itr_j])**2
-        return np.sqrt(l2_norm)
-
-    def norm_flatten(self, block, l2_norm=None):
-        block_flat = np.array([])
-        if l2_norm is None:
-            for itr_i in range(block.shape[0]):
-                for itr_j in range(block.shape[1]):
-                    block_flat = np.append(block_flat, block[itr_i][itr_j])
-        else:
-            for itr_i in range(block.shape[0]):
-                for itr_j in range(block.shape[1]):
-                    block_flat = np.append(block_flat, np.divide(block[itr_i][itr_j],l2_norm, out = np.zeros_like(block[itr_i][itr_j]), where = l2_norm!=0))
+                block_flat = np.append(block_flat, block[itr_i][itr_j])
         return block_flat
 
     def normalize_hist_bin(self, norm_hist_bin_blockwise, hist_bin_cellwise, block_size = 2):
         for itr_i in range(norm_hist_bin_blockwise.shape[0]):
             for itr_j in range(norm_hist_bin_blockwise.shape[1]):
                 block = hist_bin_cellwise[itr_i:itr_i+block_size, itr_j:itr_j+block_size]
-                l2_norm = self.get_l2_norm(block)
-                norm_hist_bin_blockwise[itr_i][itr_j] = self.norm_flatten(block, l2_norm=l2_norm)
+                block_flat = self.flatten(block)
+                l2_norm = self.get_l2_norm(block_flat)
+                if l2_norm != 0:
+                    norm_hist_bin_blockwise[itr_i][itr_j] = block_flat/l2_norm
+                else:
+                    norm_hist_bin_blockwise[itr_i][itr_j] = block_flat
         return norm_hist_bin_blockwise
 
 
@@ -160,14 +154,13 @@ class HumanDetectorHOG():
         gradient_magnitude, gradient_angle = self.gradient_info_calc(img)
         hist_bin_cellwise = self.calc_hist_bin(np.empty(self.cell_template_shape, object), gradient_magnitude, gradient_angle)
         norm_hist_bin_blockwise = self.normalize_hist_bin(np.empty(self.block_template_shape, object), hist_bin_cellwise)
-        descriptor = self.norm_flatten(norm_hist_bin_blockwise)
+        descriptor = self.flatten(norm_hist_bin_blockwise)
         return descriptor
 
     def calc_similarity(self, test_descriptor, train_descriptor):
         numerator = 0
         for itr in range(len(test_descriptor)):
             numerator += min(train_descriptor[itr], test_descriptor[itr])
-
         return numerator/sum(train_descriptor)
 
     def predict(self, info):
@@ -211,7 +204,9 @@ class HumanDetectorHOG():
 
         for key, value in self.testing_set.items():
             print(f'{key}\nActual: {value["actual"]}\tPredicted: {value["predicted"]}\nInfo:\n{value["knn_info"]}\n\n**********\n\n')
-
+            for row in value['descriptor']:
+                print(row)
+            print('\n\n**********\n**********\n\n')
 
 if __name__ == '__main__':
     image_data_path = 'image_data'
