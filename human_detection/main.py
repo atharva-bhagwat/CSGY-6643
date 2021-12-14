@@ -44,8 +44,6 @@ class HumanDetectorHOG():
         # Maximum possible value for gradient magnitude
         self.MAGNITUDE_NORMALIZATION_FACTOR = 3*(2**0.5)
 
-        self.get_l2_norm = lambda x: np.sqrt(sum(x**2))
-
         self.driver()
 
     def read_img(self, path):
@@ -85,7 +83,8 @@ class HumanDetectorHOG():
         gradient_angle = np.zeros(gradient_magnitude.shape)
         gradient_angle = np.rad2deg(np.arctan2(gradient_y, gradient_x))
         # If angle is negative add 180 to make it positive
-        gradient_angle[gradient_angle < 0] += 180
+        gradient_angle[gradient_angle < 0] += abs(gradient_angle[gradient_angle < 0])
+
         # If angle is greater than 180, subtract 180
         gradient_angle[gradient_angle > 180] -= 180
 
@@ -137,18 +136,17 @@ class HumanDetectorHOG():
                 block_flat = np.append(block_flat, block[itr_i][itr_j])
         return block_flat
 
+    def get_l2_norm(self, values):
+        return np.sqrt(sum(values**2))
+
     def normalize_hist_bin(self, norm_hist_bin_blockwise, hist_bin_cellwise, block_size = 2):
         for itr_i in range(norm_hist_bin_blockwise.shape[0]):
             for itr_j in range(norm_hist_bin_blockwise.shape[1]):
                 block = hist_bin_cellwise[itr_i:itr_i+block_size, itr_j:itr_j+block_size]
                 block_flat = self.flatten(block)
                 l2_norm = self.get_l2_norm(block_flat)
-                if l2_norm != 0:
-                    norm_hist_bin_blockwise[itr_i][itr_j] = block_flat/l2_norm
-                else:
-                    norm_hist_bin_blockwise[itr_i][itr_j] = block_flat
+                norm_hist_bin_blockwise[itr_i][itr_j] = block_flat/l2_norm if l2_norm != 0 else block_flat
         return norm_hist_bin_blockwise
-
 
     def hog_driver(self, img):
         gradient_magnitude, gradient_angle = self.gradient_info_calc(img)
@@ -158,10 +156,10 @@ class HumanDetectorHOG():
         return descriptor
 
     def calc_similarity(self, test_descriptor, train_descriptor):
-        numerator = 0
+        sigma = 0
         for itr in range(len(test_descriptor)):
-            numerator += min(train_descriptor[itr], test_descriptor[itr])
-        return numerator/sum(train_descriptor)
+            sigma += min(train_descriptor[itr], test_descriptor[itr])
+        return sigma/sum(train_descriptor)
 
     def predict(self, info):
         prediction = []
@@ -198,15 +196,16 @@ class HumanDetectorHOG():
                                 self.training_set[image_filename] = {'img':img,'class':label,'descriptor':descriptor}
                             if 'test' in sub_folder.lower():
                                 self.testing_set[image_filename] = {'img':img,'actual':label,'descriptor':descriptor,'predicted':None,'knn_info':None}
+    
     def driver(self):
         self.load_data()
         self.classify()
 
         for key, value in self.testing_set.items():
             print(f'{key}\nActual: {value["actual"]}\tPredicted: {value["predicted"]}\nInfo:\n{value["knn_info"]}\n\n**********\n\n')
-            for row in value['descriptor']:
-                print(row)
-            print('\n\n**********\n**********\n\n')
+            # for row in value['descriptor']:
+            #     print(row)
+            # print('\n\n**********\n**********\n\n')
 
 if __name__ == '__main__':
     image_data_path = 'image_data'
