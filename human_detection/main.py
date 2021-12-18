@@ -82,8 +82,9 @@ class HumanDetectorHOG():
 
         gradient_angle = np.zeros(gradient_magnitude.shape)
         gradient_angle = np.rad2deg(np.arctan2(gradient_y, gradient_x))
-        # If angle is negative add 180 to make it positive
-        gradient_angle[gradient_angle < 0] += abs(gradient_angle[gradient_angle < 0])
+
+        # If angle is negative add 360 to make it positive
+        gradient_angle[gradient_angle < 0] += 360
 
         # If angle is greater than 180, subtract 180
         gradient_angle[gradient_angle > 180] -= 180
@@ -136,8 +137,8 @@ class HumanDetectorHOG():
                 block_flat = np.append(block_flat, block[itr_i][itr_j])
         return block_flat
 
-    def get_l2_norm(self, values):
-        return np.sqrt(sum(values**2))
+    def get_l2_norm(self, block_flat):
+        return np.sqrt(sum(block_flat**2))
 
     def normalize_hist_bin(self, norm_hist_bin_blockwise, hist_bin_cellwise, block_size = 2):
         for itr_i in range(norm_hist_bin_blockwise.shape[0]):
@@ -203,9 +204,6 @@ class HumanDetectorHOG():
 
         for key, value in self.testing_set.items():
             print(f'{key}\nActual: {value["actual"]}\tPredicted: {value["predicted"]}\nInfo:\n{value["knn_info"]}\n\n**********\n\n')
-            # for row in value['descriptor']:
-            #     print(row)
-            # print('\n\n**********\n**********\n\n')
 
 if __name__ == '__main__':
     image_data_path = 'image_data'
