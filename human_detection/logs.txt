@@ -1,0 +1,81 @@
+Creating descriptors...
+no_person__no_bike_264_cut.bmp
+Actual: No-Human	Predicted: Human
+Info:
+{'00000053a_cut.bmp': {'similarity': 0.44289997027456457, 'class': 'No-Human'}, 'crop001672b.bmp': {'similarity': 0.4403924653647689, 'class': 'Human'}, 'crop001030c.bmp': {'similarity': 0.4350727190492717, 'class': 'Human'}}
+
+**********
+
+
+no_person__no_bike_258_Cut.bmp
+Actual: No-Human	Predicted: Human
+Info:
+{'00000057a_cut.bmp': {'similarity': 0.49608355977358726, 'class': 'No-Human'}, 'crop001672b.bmp': {'similarity': 0.4889128003718729, 'class': 'Human'}, 'crop001275b.bmp': {'similarity': 0.48447909102042974, 'class': 'Human'}}
+
+**********
+
+
+00000118a_cut.bmp
+Actual: No-Human	Predicted: No-Human
+Info:
+{'00000093a_cut.bmp': {'similarity': 0.5616682726954044, 'class': 'No-Human'}, '00000053a_cut.bmp': {'similarity': 0.5549391592711745, 'class': 'No-Human'}, '00000091a_cut.bmp': {'similarity': 0.5489814793450448, 'class': 'No-Human'}}
+
+**********
+
+
+00000003a_cut.bmp
+Actual: No-Human	Predicted: No-Human
+Info:
+{'00000053a_cut.bmp': {'similarity': 0.5765316572066519, 'class': 'No-Human'}, 'crop001672b.bmp': {'similarity': 0.5739604552324069, 'class': 'Human'}, '00000093a_cut.bmp': {'similarity': 0.5481573712752085, 'class': 'No-Human'}}
+
+**********
+
+
+00000090a_cut.bmp
+Actual: No-Human	Predicted: No-Human
+Info:
+{'00000093a_cut.bmp': {'similarity': 0.4782106859672371, 'class': 'No-Human'}, '00000057a_cut.bmp': {'similarity': 0.471244101573042, 'class': 'No-Human'}, 'crop001672b.bmp': {'similarity': 0.4454548490312281, 'class': 'Human'}}
+
+**********
+
+
+crop001070a.bmp
+Actual: Human	Predicted: Human
+Info:
+{'00000053a_cut.bmp': {'similarity': 0.49773136312501937, 'class': 'No-Human'}, 'person_and_bike_026a.bmp': {'similarity': 0.4951515123825221, 'class': 'Human'}, 'crop001672b.bmp': {'similarity': 0.49413635397925754, 'class': 'Human'}}
+
+**********
+
+
+person_and_bike_151a.bmp
+Actual: Human	Predicted: Human
+Info:
+{'crop001030c.bmp': {'similarity': 0.5047498252481856, 'class': 'Human'}, 'person_and_bike_026a.bmp': {'similarity': 0.5021858406740544, 'class': 'Human'}, 'crop001275b.bmp': {'similarity': 0.4943144097545533, 'class': 'Human'}}
+
+**********
+
+
+crop001500b.bmp
+Actual: Human	Predicted: Human
+Info:
+{'crop001672b.bmp': {'similarity': 0.5668594684156762, 'class': 'Human'}, '00000091a_cut.bmp': {'similarity': 0.5609441151510307, 'class': 'No-Human'}, 'crop001275b.bmp': {'similarity': 0.5442056517959091, 'class': 'Human'}}
+
+**********
+
+
+crop001034b.bmp
+Actual: Human	Predicted: No-Human
+Info:
+{'crop001672b.bmp': {'similarity': 0.6683415258135992, 'class': 'Human'}, '00000053a_cut.bmp': {'similarity': 0.6473836248896453, 'class': 'No-Human'}, '01-03e_cut.bmp': {'similarity': 0.6435346855419471, 'class': 'No-Human'}}
+
+**********
+
+
+crop001278a.bmp
+Actual: Human	Predicted: Human
+Info:
+{'crop001672b.bmp': {'similarity': 0.5981266756436043, 'class': 'Human'}, 'crop001008b.bmp': {'similarity': 0.591969486562081, 'class': 'Human'}, 'crop001275b.bmp': {'similarity': 0.5839522263618344, 'class': 'Human'}}
+
+**********
+
+

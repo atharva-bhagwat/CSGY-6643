@@ -46,6 +46,25 @@ class HumanDetectorHOG():
 
         self.driver()
 
+    def is_dir(self, directory):
+        """Helper function to create directories if they don't exist
+
+        Args:
+        directory (str): Directory path
+        """
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+            print(f'Creating {directory}...')
+
+    def write_descriptor(self, image_filename, descriptor):
+        descriptor_folder = 'descriptors'
+        self.is_dir(descriptor_folder)
+        descriptor_filename = image_filename.split('.')[0] + '_descriptor.txt'
+        file_pointer = open(os.path.join(descriptor_folder, descriptor_filename), 'w')
+        for value in descriptor:
+            file_pointer.write(str(value)+'\n')
+        file_pointer.close()
+
     def read_img(self, path):
         return cv2.imread(path)
     
@@ -76,7 +95,7 @@ class HumanDetectorHOG():
         gradient_x = self.convolution(img, self.PREWITT_X)
         gradient_y = self.convolution(img, self.PREWITT_Y)
 
-        gradient_magnitude = np.hypot(gradient_x, gradient_y) # save this. need for report
+        gradient_magnitude = np.hypot(gradient_x, gradient_y)
 
         gradient_magnitude = gradient_magnitude/self.MAGNITUDE_NORMALIZATION_FACTOR
 
@@ -159,7 +178,7 @@ class HumanDetectorHOG():
     def calc_similarity(self, test_descriptor, train_descriptor):
         sigma = 0
         for itr in range(len(test_descriptor)):
-            sigma += min(train_descriptor[itr], test_descriptor[itr])
+            sigma += min(test_descriptor[itr], train_descriptor[itr])
         return sigma/sum(train_descriptor)
 
     def predict(self, info):
@@ -193,6 +212,7 @@ class HumanDetectorHOG():
                             img = self.bgr_2_gray(self.read_img(os.path.join(self.image_data_path, sub_folder, image_filename)))
                             label = "Human" if 'pos' in sub_folder.lower() else "No-Human"
                             descriptor = self.hog_driver(img)
+                            self.write_descriptor(image_filename, descriptor)
                             if 'training' in sub_folder.lower():
                                 self.training_set[image_filename] = {'img':img,'class':label,'descriptor':descriptor}
                             if 'test' in sub_folder.lower():
