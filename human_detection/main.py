@@ -9,7 +9,27 @@ Steps:
 
 Notes:
 - If the gradient angle is less than 0, add 360. If the gradient angle is greater than 180, subtract 180 from it.
-- The larger the similarity, the smaller the distance between the input image and the training image. 
+- The larger the similarity, the smaller the distance between the input image and the training image.
+
+*************************************************************************************************************************
+
+Dependency Installation: pip3 install -r requirements.txt
+
+Usage: python3 main.py <path_to_image_data_folder>
+
+Example: python3 main.py image_data
+
+After execution, results will be displayed on the terminal. Folders 'descriptors' and 'test_images_gradient_magnitude' will be
+created with relevant result information.
+
+*************************************************************************************************************************
+
+Libraries Used:
+- os: Create folder structure for output images
+- cv2: Read input image, write output images
+- argparse: Parse arguments (Input image file path)
+- numpy: ndarray handling, magnitude calculation (sqrt(a^2+b^2)), gradient angle calculation, setting undefined pixel values to 0, etc.
+- more-itertools: Slice dictionary to get top 'k' entries
 """
 
 import os
